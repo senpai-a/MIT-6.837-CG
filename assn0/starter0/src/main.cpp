@@ -6,7 +6,7 @@
 #include <cassert>
 #include <iostream>
 #include <sstream>
-
+#include <cstdio>
 #include <vecmath.h>
 #include "starter0_util.h"
 #include "recorder.h"
@@ -16,18 +16,16 @@ using namespace std;
 
 // Globals
 uint32_t program;
-
 // This is the list of points (3D vectors)
 vector<Vector3f> vecv;
-
 // This is the list of normals (also 3D vectors)
 vector<Vector3f> vecn;
-
 // This is the list of faces (indices into vecv and vecn)
-vector<vector<unsigned>> vecf;
+vector<vector<unsigned>> vecf;//[[v1,n1,v2,n2,v3,n3],..]
 
 // You will need more global variables to implement color and position changes
-
+uint32_t colorIdx = 0;
+GLfloat lightPos[] = { 2.0f, 3.0f, 5.0f, 1.0f };
 
 void keyCallback(GLFWwindow* window, int key,
     int scancode, int action, int mods)
@@ -42,7 +40,26 @@ void keyCallback(GLFWwindow* window, int key,
         glfwSetWindowShouldClose(window, GLFW_TRUE);
     } else if (key == 'A') {
         printf("Key A pressed\n");
-    } else {
+    } else if (key == 'C') {
+        colorIdx += 1 ;  
+    } else if (key == 263) { //←
+        lightPos[0] -= .5f ;
+    } else if (key == 262) { //→
+        lightPos[0] += .5f ;
+    } else if (key == 265) {   //↑
+        lightPos[1] += .5f ;
+    } else if (key == 264) {   //↓
+        lightPos[1] -= .5f ;
+    } else if (key == 'W') {
+        lightPos[2] -= .5f ;
+    } else if (key == 'S') {
+        lightPos[2] += .5f ;
+    } else if (key == 'Z') {
+        lightPos[0] = 2.0f ;
+        lightPos[1] = 3.0f ;
+        lightPos[2] = 5.0f ;
+    } 
+    else {
         printf("Unhandled key press %d\n", key);
     }
 }
@@ -83,13 +100,23 @@ void drawTeapot()
 void drawObjMesh() {
     // draw obj mesh here
     // read vertices and face indices from vecv, vecn, vecf
+    int nFaces = vecf.size();
+    
+    GeometryRecorder rec(nFaces*3);
+    for (auto it=vecf.begin();it!=vecf.end();it++) {//vecf[i]:v1,n1,v2,n2,v3,n3
+        auto face = *it;
+        rec.record(vecv[face[0]-1], vecn[face[1]-1]);
+        rec.record(vecv[face[2]-1], vecn[face[3]-1]);
+        rec.record(vecv[face[4]-1], vecn[face[5]-1]);
+    }
+    rec.draw();
 }
 
 // This function is responsible for displaying the object.
 void drawScene()
 {
-    // drawObjMesh();
-    drawTeapot();
+    drawObjMesh();
+    //drawTeapot();
 }
 
 void setViewport(GLFWwindow* window)
@@ -148,8 +175,9 @@ void updateCameraUniforms()
 
 void updateMaterialUniforms()
 {
+    #define nColors (4)
     // Here are some colors you might use - feel free to add more
-    GLfloat diffColors[4][4] = { 
+    GLfloat diffColors[nColors][4] = { 
     { 0.5f, 0.5f, 0.9f, 1.0f },
     { 0.9f, 0.5f, 0.5f, 1.0f },
     { 0.5f, 0.9f, 0.3f, 1.0f },
@@ -157,8 +185,8 @@ void updateMaterialUniforms()
 
     // Here we use the first color entry as the diffuse color
     int loc = glGetUniformLocation(program, "diffColor");
-    glUniform4fv(loc, 1, diffColors[0]);
-
+    glUniform4fv(loc, 1, diffColors[colorIdx % nColors]);
+    #undef nColors
     // Define specular color and shininess
     GLfloat specColor[] = { 0.2f, 0.2f, 0.2f, 1.0f };
     GLfloat shininess[] = { 10.0f };
@@ -173,7 +201,7 @@ void updateMaterialUniforms()
 void updateLightUniforms()
 {
     // Light Position
-    GLfloat lightPos[] = { 2.0f, 3.0f, 5.0f, 1.0f };
+    //GLfloat lightPos[] = { 2.0f, 3.0f, 5.0f, 1.0f };
     int loc = glGetUniformLocation(program, "lightPos");
     glUniform4fv(loc, 1, lightPos);
 
@@ -186,6 +214,36 @@ void updateLightUniforms()
 void loadInput()
 {
     // load the OBJ file here
+    const int MAX_BUFFER_SIZE = 4096;
+    char buffer[MAX_BUFFER_SIZE];
+    int linecount = 0;
+    while(cin.getline(buffer, MAX_BUFFER_SIZE)){
+        stringstream ss(buffer);
+        Vector3f v;
+        int id[3];
+        string eleCode;
+        ss>>eleCode;
+        if(eleCode == "v"){
+            ss>>v[0]>>v[1]>>v[2];
+            vecv.push_back(v);
+        } 
+        else if(eleCode == "vn"){
+            ss>>v[0]>>v[1]>>v[2];
+            vecn.push_back(v);
+        }
+        else if(eleCode == "f"){
+            vector<unsigned> fv;//[v1,n1,v2,n2,v3,n2]
+            for(int i=0;i<3;i++){
+                char c;
+                ss>>id[0]>>c>>id[1]>>c>>id[2];    
+                fv.push_back(id[0]); fv.push_back(id[2]);
+            }
+            vecf.push_back(fv);
+        }
+        linecount+=1;
+    }
+    cout<<"file loaded: "<<linecount<<endl;
+    printf("nFaces:%d nV:%d nN:%d\n",vecf.size(),vecv.size(),vecn.size());
 }
 
 // Main routine.
