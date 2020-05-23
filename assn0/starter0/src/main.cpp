@@ -25,7 +25,11 @@ vector<vector<unsigned>> vecf;//[[v1,n1,v2,n2,v3,n3],..]
 
 // You will need more global variables to implement color and position changes
 uint32_t colorIdx = 0;
+GLfloat currentColor[4] = {0.5f, 0.5f, 0.9f, 1.0f};
 GLfloat lightPos[] = { 2.0f, 3.0f, 5.0f, 1.0f };
+
+bool rotating = false;
+float rotation = 0;
 
 void keyCallback(GLFWwindow* window, int key,
     int scancode, int action, int mods)
@@ -58,7 +62,9 @@ void keyCallback(GLFWwindow* window, int key,
         lightPos[0] = 2.0f ;
         lightPos[1] = 3.0f ;
         lightPos[2] = 5.0f ;
-    } 
+    } else if (key == 'R') {
+        rotating = !rotating;
+    }
     else {
         printf("Unhandled key press %d\n", key);
     }
@@ -162,9 +168,14 @@ void updateCameraUniforms()
     // Make sure the model is centered in the viewport
     // We translate the model using the "Model" matrix
     Matrix4f M = Matrix4f::translation(0, -2.0, 0);
+    if (rotating){
+        rotation += 1.0;
+    }
+    Matrix4f R = Matrix4f::rotateY(deg2rad(rotation));
+    M = R*M;    
     loc = glGetUniformLocation(program, "M");
     glUniformMatrix4fv(loc, 1, false, M);
-
+    
     // Transformation matrices act differently
     // on vectors than on points.
     // The inverse-transpose is what we want.
@@ -185,7 +196,11 @@ void updateMaterialUniforms()
 
     // Here we use the first color entry as the diffuse color
     int loc = glGetUniformLocation(program, "diffColor");
-    glUniform4fv(loc, 1, diffColors[colorIdx % nColors]);
+    for(int i=0;i<4;i++){
+        GLfloat t = diffColors[colorIdx % nColors][i];
+        currentColor[i] += (t - currentColor[i])*.02;//expotentially change color
+    }
+    glUniform4fv(loc, 1, currentColor);
     #undef nColors
     // Define specular color and shininess
     GLfloat specColor[] = { 0.2f, 0.2f, 0.2f, 1.0f };

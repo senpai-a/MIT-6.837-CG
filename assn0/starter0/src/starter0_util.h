@@ -69,7 +69,7 @@ void main () {
 
     // 2. Compute Diffuse Contribution
     float ndotl = max(dot(normal_world, light_dir), 0.0);
-    vec3 diffContrib = PI_INV * lightDiff.xyz * diffColor.xyz
+    vec3 diffContrib = .1 + PI_INV * lightDiff.xyz * diffColor.xyz
                        * ndotl / distsq;
 
     // 3. Compute Specular Contribution
