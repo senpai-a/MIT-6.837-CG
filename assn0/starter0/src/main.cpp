@@ -50,13 +50,13 @@ void mousePosCallback(GLFWwindow *wnd, double x,double y){
     }
 };
 void scrollCallback(GLFWwindow *wnd, double x,double y){
-    printf("\nscroll x: %lf, y: %lf\n",x,y);
+    //printf("\nscroll x: %lf, y: %lf\n",x,y);
     if(y<0) scale-=0.05;
     else if (y>0) scale+=.05;
     if (scale<=0) scale = .01;
 };
 void mouseBtnCallback(GLFWwindow *wnd,int btn, int action, int mods){
-    printf("\nmouse btn:%d action:%d mod:%d\n",btn,action,mods);
+    //printf("\nmouse btn:%d action:%d mod:%d\n",btn,action,mods);
     if (btn==GLFW_MOUSE_BUTTON_1){
         if (action==GLFW_PRESS){
             dragging = true;
