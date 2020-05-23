@@ -29,7 +29,56 @@ GLfloat currentColor[4] = {0.5f, 0.5f, 0.9f, 1.0f};
 GLfloat lightPos[] = { 2.0f, 3.0f, 5.0f, 1.0f };
 
 bool rotating = false;
-float rotation = 0;
+float rotationy = 0,rotationx = 0;
+float currentRotationy = 0,currentRotationx = 0;
+float scale = 1;
+float currentScale = 1;
+
+float transfromSpeed = .2;
+float colorSpeed = .02;
+
+bool dragging = false;
+double dragFromX,dragFromY;
+
+void mousePosCallback(GLFWwindow *wnd, double x,double y){
+    printf("\rx: %lf, y: %lf",x,y);
+    if (dragging){
+        double dx = x-dragFromX, dy = y-dragFromY;
+        rotationx+= dy;
+        rotationy+= dx;
+        glfwGetCursorPos(wnd,&dragFromX,&dragFromY);
+    }
+};
+void scrollCallback(GLFWwindow *wnd, double x,double y){
+    printf("\nscroll x: %lf, y: %lf\n",x,y);
+    if(y<0) scale-=0.05;
+    else if (y>0) scale+=.05;
+    if (scale<=0) scale = .01;
+};
+void mouseBtnCallback(GLFWwindow *wnd,int btn, int action, int mods){
+    printf("\nmouse btn:%d action:%d mod:%d\n",btn,action,mods);
+    if (btn==GLFW_MOUSE_BUTTON_1){
+        if (action==GLFW_PRESS){
+            dragging = true;
+            glfwGetCursorPos(wnd,&dragFromX,&dragFromY);
+        }            
+        else if (action==GLFW_RELEASE){
+            dragging = false;
+        }
+    }
+    else if (btn == GLFW_MOUSE_BUTTON_2){
+        if (action==GLFW_PRESS){
+            rotationx = 0;
+            rotationy = 0;
+        }
+    }
+    else if (btn == GLFW_MOUSE_BUTTON_3){
+        if (action==GLFW_PRESS){
+            scale = 1;
+        }
+    }
+    
+}
 
 void keyCallback(GLFWwindow* window, int key,
     int scancode, int action, int mods)
@@ -169,10 +218,15 @@ void updateCameraUniforms()
     // We translate the model using the "Model" matrix
     Matrix4f M = Matrix4f::translation(0, -2.0, 0);
     if (rotating){
-        rotation += 1.0;
+        rotationy += 1.0;
     }
-    Matrix4f R = Matrix4f::rotateY(deg2rad(rotation));
-    M = R*M;    
+    currentRotationy = currentRotationy*(1-transfromSpeed)+rotationy*transfromSpeed;
+    currentRotationx = currentRotationx*(1-transfromSpeed)+rotationx*transfromSpeed;
+    currentScale = currentScale*(1-transfromSpeed)+scale*transfromSpeed;
+    Matrix4f Ry = Matrix4f::rotateY(deg2rad(currentRotationy));
+    Matrix4f Rx = Matrix4f::rotateX(deg2rad(currentRotationx));
+    Matrix4f S = Matrix4f::scaling(currentScale,currentScale,currentScale);
+    M = M*S*Rx*Ry;
     loc = glGetUniformLocation(program, "M");
     glUniformMatrix4fv(loc, 1, false, M);
     
@@ -198,7 +252,7 @@ void updateMaterialUniforms()
     int loc = glGetUniformLocation(program, "diffColor");
     for(int i=0;i<4;i++){
         GLfloat t = diffColors[colorIdx % nColors][i];
-        currentColor[i] += (t - currentColor[i])*.02;//expotentially change color
+        currentColor[i] += (t - currentColor[i])*colorSpeed;//expotentially change color
     }
     glUniform4fv(loc, 1, currentColor);
     #undef nColors
@@ -272,6 +326,9 @@ int main(int argc, char** argv)
     // setup the keyboard event handler
     glfwSetKeyCallback(window, keyCallback);
 
+    glfwSetCursorPosCallback(window,mousePosCallback);
+    glfwSetScrollCallback(window, scrollCallback);
+    glfwSetMouseButtonCallback(window, mouseBtnCallback);
     // glEnable() and glDisable() control parts of OpenGL's
     // fixed-function pipeline, such as rasterization, or
     // depth-buffering. What happens if you remove the next line?
